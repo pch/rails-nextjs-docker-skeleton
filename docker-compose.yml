@@ -1,0 +1,98 @@
+version: "3.4"
+
+x-app: &app
+  image: your-app-namee:1.0.0
+  build:
+    context: ./backend
+    args:
+      RUBY_VERSION: "2.7.2"
+      PG_MAJOR: "12"
+      NODE_MAJOR: "12"
+      BUNDLER_VERSION: "2.1.4"
+      RAILS_ENV: "development"
+  environment: &env
+    NODE_ENV: ${NODE_ENV:-development}
+    RAILS_ENV: ${RAILS_ENV:-development}
+  env_file:
+    - ./backend/.env
+
+x-backend: &backend
+  <<: *app
+  stdin_open: true
+  tty: true
+  volumes:
+    - ./backend:/usr/src/app:cached
+    - gem_cache:/gems
+    - ~/.irbrc:/root/.irbrc
+    - ~/.irb_history:/root/.irb_history
+    - ~/.pry_history:/root/.pry_history
+    - ./backend/docker/.psqlrc:/root/.psqlrc:ro
+    - ./backend/docker/.bashrc:/root/.bashrc:ro
+    - /run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock
+  environment:
+    <<: *env
+    PORT: 4000
+    DATABASE_HOST: database
+    DATABASE_USERNAME: postgres
+    DATABASE_PASSWORD: authpass
+    NUM_WEBS: 1
+    HISTFILE: /usr/src/app/log/.bash_history
+    PSQL_HISTFILE: /usr/src/app/log/.psql_history
+    EDITOR: vim
+    SSH_AUTH_SOCK: "/run/host-services/ssh-auth.sock"
+
+  depends_on:
+    - database
+
+services:
+  nextjs:
+    build:
+      context: ./frontend
+    volumes:
+       - ./frontend:/usr/src/client-app:cached
+       - node_modules_client:/usr/src/client-app/node_modules
+    ports:
+      - 3000:3000
+    depends_on:
+      - rails
+
+  nextjs-bash:
+    build:
+      context: ./frontend
+    volumes:
+       - ./frontend:/usr/src/client-app:cached
+       - node_modules_client:/usr/src/client-app/node_modules
+    entrypoint: ""
+    command: /bin/bash
+
+  bash:
+    <<: *backend
+    entrypoint: ""
+    command: /bin/bash
+
+  rails:
+    <<: *backend
+    entrypoint: ./docker/docker-entrypoint.sh
+    command: bundle exec rails server -b 0.0.0.0
+    ports:
+      - "4000:4000"
+
+  database:
+    image: postgres:12
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./log:/root/log
+      - ./docker/.psqlrc:/root/.psqlrc:ro
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: authpass
+      PSQL_HISTFILE: /root/log/.psql_history
+    command: -c fsync=off
+    healthcheck:
+      test: pg_isready -U postgres -h 127.0.0.1
+      interval: 5s
+
+volumes:
+  db_data:
+  gem_cache:
+  node_modules_client:

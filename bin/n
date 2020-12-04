@@ -1,0 +1,8 @@
+#!/bin/bash
+# Run commands in the 'nextjs' container
+#
+# Used as a shorthand for executing commands like `yarn add`
+
+set -e
+
+docker-compose run --rm nextjs-bash $*
