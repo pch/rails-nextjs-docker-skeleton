@@ -1,6 +1,8 @@
 # Rails & Next.js Project Skeleton
 
-This is the structure I use to work on my Rails & Next.js based projects. Backend and frontend are separated, but running everything in docker allows to run the whole stack with a single command:
+This is the structure I use to work on my Rails & Next.js projects.
+
+Backend and frontend are separated, but having everything in Docker allows to run the whole stack with a single command:
 
 ~~~ sh
 docker-compose up
